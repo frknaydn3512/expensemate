@@ -4,7 +4,9 @@ import '../models/expense_model.dart';
 import '../services/database_helper.dart';
 
 class AddExpenseScreen extends StatefulWidget {
-  const AddExpenseScreen({super.key});
+  final Expense? expenseToEdit; // <-- düzenleme için eklendi
+
+  const AddExpenseScreen({Key? key, this.expenseToEdit}) : super(key: key);
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -17,31 +19,47 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   double _amount = 0;
   DateTime _selectedDate = DateTime.now();
 
-Future<void> _submit() async {
-  if (_formKey.currentState?.validate() != true) return;
-  _formKey.currentState?.save();
+  @override
+  void initState() {
+    super.initState();
+    if (widget.expenseToEdit != null) {
+      _title = widget.expenseToEdit!.title;
+      _category = widget.expenseToEdit!.category;
+      _amount = widget.expenseToEdit!.amount;
+      _selectedDate = widget.expenseToEdit!.date;
+    }
+  }
 
-  final prefs = await SharedPreferences.getInstance();
-  final userId = prefs.getInt('userId');
-  if (userId == null) return;
+  Future<void> _submit() async {
+    if (_formKey.currentState?.validate() != true) return;
+    _formKey.currentState?.save();
 
-  final expense = Expense(
-    userId: userId,
-    title: _title,
-    amount: _amount,
-    category: _category,
-    date: _selectedDate,
-  );
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('userId');
+    if (userId == null) return;
 
-  await DatabaseHelper().insertExpense(expense);
-  if (mounted) Navigator.of(context).pop();
-}
+    final expense = Expense(
+      id: widget.expenseToEdit?.id,
+      userId: userId,
+      title: _title,
+      amount: _amount,
+      category: _category,
+      date: _selectedDate,
+    );
 
+    if (widget.expenseToEdit == null) {
+      await DatabaseHelper().insertExpense(expense);
+    } else {
+      await DatabaseHelper().updateExpense(expense); // Güncelleme fonksiyonu
+    }
+
+    if (mounted) Navigator.of(context).pop();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Harcama Ekle')),
+      appBar: AppBar(title: Text(widget.expenseToEdit == null ? 'Harcama Ekle' : 'Harcamayı Düzenle')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -49,10 +67,12 @@ Future<void> _submit() async {
           child: Column(
             children: [
               TextFormField(
+                initialValue: _title,
                 decoration: const InputDecoration(labelText: 'Açıklama'),
                 onSaved: (val) => _title = val!,
               ),
               TextFormField(
+                initialValue: _amount != 0 ? _amount.toString() : '',
                 decoration: const InputDecoration(labelText: 'Tutar (₺)'),
                 keyboardType: TextInputType.number,
                 onSaved: (val) => _amount = double.tryParse(val ?? '') ?? 0,
@@ -62,12 +82,14 @@ Future<void> _submit() async {
                 items: ['Gıda', 'Ulaşım', 'Eğlence', 'Fatura', 'Diğer']
                     .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
                     .toList(),
-                onChanged: (val) => _category = val!,
+                onChanged: (val) => setState(() {
+                  _category = val!;
+                }),
               ),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _submit,
-                child: const Text('Kaydet'),
+                child: Text(widget.expenseToEdit == null ? 'Kaydet' : 'Güncelle'),
               ),
             ],
           ),

@@ -1,8 +1,9 @@
+import 'package:expensemate/screens/add_expense_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:expensemate/services/database_helper.dart';
 import 'package:expensemate/models/expense_model.dart';
-import 'package:intl/intl.dart';
+//import 'package:intl/intl.dart';
 import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -71,16 +72,45 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Expanded(
             child: ListView.builder(
-              itemCount: expenses.length,
-              itemBuilder: (context, index) {
-                final exp = expenses[index];
-                return ListTile(
-                  title: Text(exp.title),
-                  subtitle: Text('${exp.category} - ${DateFormat.yMMMd().format(exp.date)}'),
-                  trailing: Text('₺${exp.amount.toStringAsFixed(2)}'),
+  itemCount: expenses.length,
+  itemBuilder: (context, index) {
+    final expense = expenses[index];
+    return Card(
+      child: ListTile(
+        title: Text(expense.title),
+        subtitle: Text('${expense.amount.toStringAsFixed(2)} ₺ - ${expense.date}'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(Icons.edit, color: Colors.blue),
+              onPressed: () async {
+                // Düzenleme ekranına yönlendir
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AddExpenseScreen(
+                      expenseToEdit: expense, // Bu parametreyi eklemelisin
+                    ),
+                  ),
                 );
+                _loadExpenses(); // Güncellenmiş verileri yükle
               },
             ),
+            IconButton(
+              icon: Icon(Icons.delete, color: Colors.red),
+              onPressed: () async {
+                await DatabaseHelper().deleteExpense(expense.id!);
+                _loadExpenses(); // Silindikten sonra listeyi yenile
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  },
+)
+,
           )
         ],
       ),
